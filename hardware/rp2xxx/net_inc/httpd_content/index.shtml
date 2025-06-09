@@ -1,0 +1,269 @@
+<html>
+<head>
+    <title>BBOS</title>
+</head>
+<body>
+    <style>
+        * {
+            background-color: black;
+        }
+        p {
+            white-space: pre;
+            font-family: monospace;
+            font-size: 2vw;
+            text-align: left;
+            background-color: black;
+            color: aquamarine;
+            font-weight: bold;
+        }
+        .bbos-header {
+            color: deeppink;
+        }
+        .relay-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2em;
+            margin-top: 2em;
+        }
+        .relay-row {
+            display: flex;
+            align-items: center;
+            gap: 2em;
+            background: #111;
+            border-radius: 1em;
+            padding: 1.5em 2.5em;
+            box-shadow: 0 0 16px 2px #222;
+        }
+        .relay-label {
+            font-size: 2.2vw;
+            color: #fff;
+            font-family: monospace;
+            font-weight: bold;
+            min-width: 15em;
+            cursor: pointer;
+        }
+        .relay-label:hover {
+            color: #00ff99;
+        }
+        .relay-label input {
+            font-size: 2.2vw;
+            font-family: monospace;
+            font-weight: bold;
+            background: #222;
+            color: #fff;
+            border: 2px solid #00ff99;
+            border-radius: 0.3em;
+            padding: 0.2em;
+            width: 12em;
+        }
+        .relay-state {
+            font-size: 2.2vw;
+            font-family: monospace;
+            font-weight: bold;
+            padding: 0.2em 1em;
+            border-radius: 0.5em;
+            margin-right: 1em;
+        }
+        .relay-state.on {
+            background: #00ff99;
+            color: #111;
+        }
+        .relay-state.off {
+            background: #ff3366;
+            color: #fff;
+        }
+        .relay-btn {
+            font-size: 2vw;
+            font-family: monospace;
+            font-weight: bold;
+            padding: 0.5em 2em;
+            border-radius: 0.7em;
+            border: none;
+            margin-left: 0.5em;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        .relay-btn.on {
+            background: #00ff99;
+            color: #111;
+        }
+        .relay-btn.off {
+            background: #ff3366;
+            color: #fff;
+        }
+        .relay-btn:hover {
+            filter: brightness(1.2);
+        }
+        .timer {
+            font-size: 1.8vw;
+            font-family: monospace;
+            color: #00ff99;
+            margin-left: 1em;
+            display: none;
+        }
+    </style>
+    <pre style="text-align:center; color:deeppink; font-size:2vw; font-family:monospace; font-weight:bold; margin-top:2em; margin-bottom:2em;">
++---------------------------------------------------------------+
+| do not leave your room, do not  commit that fateful mistake.  |
+|                                                               |
+| Why risk the sun? Just settle back at home and smoke.         |
++---------------------------------------------------------------+
+</pre>
+    <div class="relay-controls">
+        <div class="relay-row">
+            <span class="relay-label" onclick="startRenaming(1)">Relay 1</span>
+            <span id="relay1_state" class="relay-state"><!--#relay1--></span>
+            <a id="relay1_on" class="relay-btn on" href="javascript:void(0)" onclick="toggleRelay(16, 'on')">ON</a>
+            <a id="relay1_off" class="relay-btn off" href="javascript:void(0)" onclick="toggleRelay(16, 'off')">OFF</a>
+            <span id="relay1_timer" class="timer"></span>
+        </div>
+        <div class="relay-row">
+            <span class="relay-label" onclick="startRenaming(2)">Relay 2</span>
+            <span id="relay2_state" class="relay-state"><!--#relay2--></span>
+            <a id="relay2_on" class="relay-btn on" href="javascript:void(0)" onclick="toggleRelay(17, 'on')">ON</a>
+            <a id="relay2_off" class="relay-btn off" href="javascript:void(0)" onclick="toggleRelay(17, 'off')">OFF</a>
+            <span id="relay2_timer" class="timer"></span>
+        </div>
+        <div class="relay-row">
+            <span class="relay-label" onclick="startRenaming(3)">Relay 3</span>
+            <span id="relay3_state" class="relay-state"><!--#relay3--></span>
+            <a id="relay3_on" class="relay-btn on" href="javascript:void(0)" onclick="toggleRelay(18, 'on')">ON</a>
+            <a id="relay3_off" class="relay-btn off" href="javascript:void(0)" onclick="toggleRelay(18, 'off')">OFF</a>
+            <span id="relay3_timer" class="timer"></span>
+        </div>
+        <div class="relay-row">
+            <span class="relay-label" onclick="startRenaming(4)">Relay 4</span>
+            <span id="relay4_state" class="relay-state"><!--#relay4--></span>
+            <a id="relay4_on" class="relay-btn on" href="javascript:void(0)" onclick="toggleRelay(19, 'on')">ON</a>
+            <a id="relay4_off" class="relay-btn off" href="javascript:void(0)" onclick="toggleRelay(19, 'off')">OFF</a>
+            <span id="relay4_timer" class="timer"></span>
+        </div>
+    </div>
+    <script>
+        let relayTimers = {};
+        let relayStartTimes = {};
+
+        // Load saved relay names
+        function loadRelayNames() {
+            for (let i = 1; i <= 4; i++) {
+                const savedName = localStorage.getItem(`relay${i}_name`);
+                if (savedName) {
+                    document.querySelector(`.relay-label[onclick="startRenaming(${i})"]`).textContent = savedName;
+                }
+            }
+        }
+
+        // Start renaming a relay
+        function startRenaming(relayNum) {
+            const label = document.querySelector(`.relay-label[onclick="startRenaming(${relayNum})"]`);
+            const currentName = label.textContent;
+            const input = document.createElement('input');
+            input.value = currentName;
+            input.onblur = function() {
+                const newName = this.value.trim() || `Relay ${relayNum}`;
+                label.textContent = newName;
+                localStorage.setItem(`relay${relayNum}_name`, newName);
+            };
+            input.onkeypress = function(e) {
+                if (e.key === 'Enter') {
+                    this.blur();
+                }
+            };
+            label.textContent = '';
+            label.appendChild(input);
+            input.focus();
+        }
+
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimer(relayNum) {
+            if (relayTimers[relayNum]) {
+                const startTime = parseInt(localStorage.getItem(`relay${relayNum}_startTime`) || relayStartTimes[relayNum]);
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById(`relay${relayNum}_timer`).textContent = formatTime(elapsed);
+            }
+        }
+
+        function toggleRelay(gpio, state) {
+            const relayNum = gpio - 15;
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `/test.shtml?gpio${gpio}=${state}`, true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const stateSpan = document.getElementById(`relay${relayNum}_state`);
+                    const timerSpan = document.getElementById(`relay${relayNum}_timer`);
+                    
+                    if (state === 'on') {
+                        stateSpan.textContent = 'ON';
+                        stateSpan.classList.add('on');
+                        stateSpan.classList.remove('off');
+                        document.getElementById(`relay${relayNum}_on`).style.display = 'none';
+                        document.getElementById(`relay${relayNum}_off`).style.display = 'inline-block';
+                        timerSpan.style.display = 'inline';
+                        const startTime = Date.now();
+                        relayStartTimes[relayNum] = startTime;
+                        localStorage.setItem(`relay${relayNum}_startTime`, startTime);
+                        if (!relayTimers[relayNum]) {
+                            relayTimers[relayNum] = setInterval(() => updateTimer(relayNum), 1000);
+                        }
+                    } else {
+                        stateSpan.textContent = 'OFF';
+                        stateSpan.classList.add('off');
+                        stateSpan.classList.remove('on');
+                        document.getElementById(`relay${relayNum}_on`).style.display = 'inline-block';
+                        document.getElementById(`relay${relayNum}_off`).style.display = 'none';
+                        timerSpan.style.display = 'none';
+                        if (relayTimers[relayNum]) {
+                            clearInterval(relayTimers[relayNum]);
+                            delete relayTimers[relayNum];
+                        }
+                        localStorage.removeItem(`relay${relayNum}_startTime`);
+                    }
+                }
+            };
+            xhr.send();
+        }
+
+        function updateRelayButtons(num) {
+            var state = document.getElementById('relay'+num+'_state').innerText.trim();
+            var stateSpan = document.getElementById('relay'+num+'_state');
+            var timerSpan = document.getElementById('relay'+num+'_timer');
+            
+            if(state === 'ON') {
+                stateSpan.classList.add('on');
+                stateSpan.classList.remove('off');
+                document.getElementById('relay'+num+'_on').style.display = 'none';
+                document.getElementById('relay'+num+'_off').style.display = 'inline-block';
+                timerSpan.style.display = 'inline';
+                const startTime = parseInt(localStorage.getItem(`relay${num}_startTime`)) || Date.now();
+                relayStartTimes[num] = startTime;
+                if (!relayTimers[num]) {
+                    relayTimers[num] = setInterval(() => updateTimer(num), 1000);
+                }
+            } else {
+                stateSpan.classList.add('off');
+                stateSpan.classList.remove('on');
+                document.getElementById('relay'+num+'_on').style.display = 'inline-block';
+                document.getElementById('relay'+num+'_off').style.display = 'none';
+                timerSpan.style.display = 'none';
+                if (relayTimers[num]) {
+                    clearInterval(relayTimers[num]);
+                    delete relayTimers[num];
+                }
+            }
+        }
+
+        // Initialize all relays
+        loadRelayNames();
+        for (var i = 1; i <= 4; i++) {
+            updateRelayButtons(i);
+        }
+    </script>
+</body>
+</html>
